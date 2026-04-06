@@ -5,7 +5,7 @@ import MarqueeBar from '@/components/landing/MarqueeBar';
 import HowItWorks from '@/components/landing/HowItWorks';
 import Testimonials from '@/components/landing/Testimonials';
 import CtaSection from '@/components/landing/CtaSection';
-import Bellaaisection from '@/components/landing/Bellaaisection';
+import BellaAISection from '@/components/landing/BellaAISection';
 
 export default function HomePage() {
   return (
@@ -13,7 +13,7 @@ export default function HomePage() {
       <SplashScreen />
       <HeroSection />
       <MarqueeBar />
-      <Bellaaisection/>
+      <BellaAISection/>
       <HowItWorks />
       <Testimonials />
       <CtaSection />
