@@ -1,0 +1,79 @@
+'use client';
+// src/context/AuthContext.tsx
+import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase/client';
+import { UserType } from '@/types';
+
+interface AuthCtx {
+  user: UserType | null;
+  fbUser: User | null;
+  loading: boolean;
+  login: (email: string, pw: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+}
+
+const Ctx = createContext<AuthCtx | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [fbUser, setFbUser]   = useState<User | null>(null);
+  const [user, setUser]       = useState<UserType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const unsubDocRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, (fu) => {
+      setFbUser(fu);
+      if (unsubDocRef.current) { unsubDocRef.current(); unsubDocRef.current = null; }
+      if (!fu) { setUser(null); setLoading(false); return; }
+      // Realtime Firestore listener — mirrors RN AuthContext.fetchUserData exactly
+      unsubDocRef.current = onSnapshot(doc(db, 'users', fu.uid), (snap) => {
+        if (snap.exists()) {
+          setUser({ ...snap.data() as UserType, uid: fu.uid, emailVerified: !!fu.emailVerified });
+        } else {
+          setUser({ uid: fu.uid, email: fu.email!, name: fu.displayName || 'User',
+            role: 'adopter', petPostIds: [], favorites: [], adoptedPets: [],
+            emailVerified: !!fu.emailVerified, createdAt: null });
+        }
+        setLoading(false);
+      }, () => setLoading(false));
+    });
+    return () => { unsubAuth(); if (unsubDocRef.current) unsubDocRef.current(); };
+  }, []);
+
+  const login = async (email: string, pw: string) => {
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), pw);
+      const { getDoc, doc: d } = await import('firebase/firestore');
+      const snap = await getDoc(d(db, 'users', cred.user.uid));
+      if (!snap.exists()) { await signOut(auth); return { success: false, error: 'Account not found in database.' }; }
+      const data = snap.data() as UserType;
+      if (data.role !== 'admin' && !(data as any).adminRole) {
+        await signOut(auth); return { success: false, error: 'Access denied. Admin privileges required.' };
+      }
+      if ((data as any).adminStatus === 'terminated') {
+        await signOut(auth); return { success: false, error: 'This account has been terminated.' };
+      }
+      return { success: true };
+    } catch (e: any) {
+      const m: Record<string, string> = {
+        'auth/wrong-password': 'Incorrect password.',
+        'auth/user-not-found': 'No account found.',
+        'auth/invalid-credential': 'Invalid credentials.',
+        'auth/too-many-requests': 'Too many attempts. Please wait.',
+      };
+      return { success: false, error: m[e.code] || e.message };
+    }
+  };
+
+  const logout = async () => { await signOut(auth); };
+
+  return <Ctx.Provider value={{ user, fbUser, loading, login, logout }}>{children}</Ctx.Provider>;
+}
+
+export const useAuth = () => {
+  const c = useContext(Ctx);
+  if (!c) throw new Error('useAuth outside AuthProvider');
+  return c;
+};

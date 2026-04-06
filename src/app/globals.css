@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400&family=Nunito:wght@400;600;700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #f4a900; --primary-light: #FFC133; --primary-dark: #d98b19;
+  --text: #1b1a18; --text-light: #543e35; --text-lighter: #9B6E50;
+  --bg: #fdf4e3; --bg-dark: #f3e6ce;
+  --red: #E52020; --green: #366025; --lgreen: #78C841; --blue: #33A1E0;
+  --psoft: rgba(244,169,0,.12); --ssoft: rgba(120,200,65,.15); --esoft: rgba(229,32,32,.10);
+}
+
+*,*::before,*::after{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;cursor:none!important;}
+a,button,input,select,textarea{cursor:none!important;}
+
+/* Cursor */
+#cdot{width:14px;height:14px;background:var(--primary);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:99999;mix-blend-mode:multiply;transform:translate(-50%,-50%);transition:width .15s,height .15s;}
+#cring{width:36px;height:36px;border:2px solid var(--primary);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:99998;transform:translate(-50%,-50%);opacity:.5;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--primary);border-radius:3px;}
+
+/* Admin table */
+.atbl th{background:var(--bg-dark);font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text-lighter);padding:10px 14px;white-space:nowrap;border-bottom:1px solid #e5ddc8;}
+.atbl td{padding:12px 14px;font-size:.84rem;border-bottom:1px solid #f0e8d5;vertical-align:middle;}
+.atbl tr:hover td{background:rgba(253,244,227,.5);}
+
+/* Shimmer skeleton */
+.skeleton{background:linear-gradient(90deg,var(--bg-dark) 25%,var(--bg) 50%,var(--bg-dark) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ReactBits-style magnetic button */
+.mag-btn{position:relative;transition:transform .3s cubic-bezier(.25,.46,.45,.94);}
+
+/* Pet illustrators */
+.pet-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
+.pet-run{position:absolute;font-size:4rem;opacity:.04;animation:runPet 14s linear infinite;}
+.pet-run:nth-child(2){animation-delay:-5s;animation-duration:18s;font-size:3rem;opacity:.03;}
+.pet-run:nth-child(3){animation-delay:-9s;animation-duration:22s;font-size:5rem;opacity:.025;}
+@keyframes runPet{0%{left:-200px;bottom:15%}100%{left:110vw;bottom:15%}}
+
+/* Float */
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
+.float-anim{animation:float 5s ease-in-out infinite;}
+
+/* Marquee */
+.marquee-track{display:flex;gap:60px;animation:marquee 22s linear infinite;white-space:nowrap;}
+@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
