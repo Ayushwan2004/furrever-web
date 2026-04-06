@@ -3,7 +3,7 @@
 // Compatible with Next.js 14.x — SERVER SIDE ONLY (API routes only, never 'use client')
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
-const FROM = 'FurrEver <onboarding@resend.dev>'; // Use this until domain verified
+const FROM = 'FurrEver <noreply@furrever.netlify.app>'; // Use this until domain verified
 // After domain verification change to: 'FurrEver <noreply@myfurrever.vercel.app>'
 const SITE = process.env.NEXT_PUBLIC_APP_URL || 'https://furrever.netlify.app/';
 
