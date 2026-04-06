@@ -5,7 +5,7 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 const FROM = 'FurrEver <onboarding@resend.dev>'; // Use this until domain verified
 // After domain verification change to: 'FurrEver <noreply@myfurrever.vercel.app>'
-const SITE = process.env.NEXT_PUBLIC_APP_URL || 'https://myfurrever.vercel.app';
+const SITE = process.env.NEXT_PUBLIC_APP_URL || 'https://furrever.netlify.app/';
 
 // ─── Raw Resend REST call — no SDK needed ──────────────────────────────────────
 async function sendEmail(to: string, subject: string, html: string, replyTo?: string) {
