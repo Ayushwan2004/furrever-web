@@ -1,5 +1,6 @@
 .env.local
 .env*.local
+furrever-expo-firebase-adminsdk-fbsvc-2fbd9d52f8.json
 node_modules/
 .next/
 out/
