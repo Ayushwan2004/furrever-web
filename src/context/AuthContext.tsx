@@ -17,8 +17,8 @@ interface AuthCtx {
 const Ctx = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [fbUser, setFbUser]   = useState<User | null>(null);
-  const [user, setUser]       = useState<UserType | null>(null);
+  const [fbUser, setFbUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const unsubDocRef = useRef<(() => void) | null>(null);
 
@@ -37,17 +37,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (snap.exists()) {
             const d = snap.data();
             setUser({
-              uid:         d.aid || fu.uid,
-              email:       d.email || fu.email!,
-              name:        d.username || fu.displayName || 'Admin',
-              role:        'admin',
-              adminRole:   d.adminRole || d.role,
+              uid: d.aid || fu.uid,
+              email: d.email || fu.email!,
+              name: d.username || fu.displayName || 'Admin',
+              role: 'admin',
+              adminRole: d.adminRole || d.role,
               adminStatus: d.adminStatus,
-              petPostIds:  [],
-              favorites:   [],
+              petPostIds: [],
+              favorites: [],
               adoptedPets: [],
               emailVerified: true,
-              createdAt:   d.createdAt,
+              createdAt: d.createdAt,
             } as any);
           } else {
             setUser(null);
@@ -74,40 +74,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, pw: string) => {
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), pw);
-      const uid  = cred.user.uid;
+      const fu = cred.user;
 
-      // Check Admins collection first
-      const adminSnap = await getDoc(doc(db, 'Admins', uid));
+      const adminSnap = await getDoc(doc(db, 'Admins', fu.uid));
       if (adminSnap.exists()) {
         const d = adminSnap.data();
         if (d.adminStatus === 'terminated') {
           await signOut(auth);
           return { success: false, error: 'This account has been terminated.' };
         }
+
+        // ✅ Auto-accept pending invite on first login
+        if (d.status === 'pending' && d.code) {
+          try {
+            await fetch('/api/admin/invites/accept', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: d.code, uid: fu.uid }),
+            });
+            await fu.getIdToken(true); // force-refresh claims
+          } catch (e) {
+            console.warn('Auto-accept failed:', e);
+          }
+        }
+
         return { success: true };
       }
 
-      // Fall back to users collection
-      const userSnap = await getDoc(doc(db, 'users', uid));
-      if (!userSnap.exists()) {
-        await signOut(auth);
-        return { success: false, error: 'Account not found in database.' };
-      }
+      // regular user fallback...
+      const userSnap = await getDoc(doc(db, 'users', fu.uid));
+      if (!userSnap.exists()) { await signOut(auth); return { success: false, error: 'Account not found in database.' }; }
       const data = userSnap.data() as UserType;
-      if (data.role !== 'admin' && !(data as any).adminRole) {
-        await signOut(auth);
-        return { success: false, error: 'Access denied. Admin privileges required.' };
-      }
-      if ((data as any).adminStatus === 'terminated') {
-        await signOut(auth);
-        return { success: false, error: 'This account has been terminated.' };
-      }
+      if (data.role !== 'admin' && !(data as any).adminRole) { await signOut(auth); return { success: false, error: 'Access denied. Admin privileges required.' }; }
+      if ((data as any).adminStatus === 'terminated') { await signOut(auth); return { success: false, error: 'This account has been terminated.' }; }
       return { success: true };
     } catch (e: any) {
       const m: Record<string, string> = {
-        'auth/wrong-password':    'Incorrect password.',
-        'auth/user-not-found':    'No account found.',
-        'auth/invalid-credential':'Invalid credentials.',
+        'auth/wrong-password': 'Incorrect password.',
+        'auth/user-not-found': 'No account found.',
+        'auth/invalid-credential': 'Invalid credentials.',
         'auth/too-many-requests': 'Too many attempts. Please wait.',
       };
       return { success: false, error: m[e.code] || e.message };
