@@ -2,5 +2,6 @@
   command = "npm run build"
   publish = ".next"
 
-[context.production.environment]
-  SECRETS_SCAN_OMIT_PATHS = "README.md,SETUP.md,.gitignore"
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "GMAIL_FROM_NAME,NEXT_PUBLIC_APK_URL,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_APK_URL"
+  SECRETS_SCAN_OMIT_PATHS = "README.md,SETUP.md,.gitignore,.netlify"
