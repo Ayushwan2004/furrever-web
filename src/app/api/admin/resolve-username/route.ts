@@ -8,11 +8,21 @@ export async function POST(req: NextRequest) {
     const { username } = await req.json();
     if (!username) return res.err('username required', 400);
 
-    const snap = await adminDb()
+    // Try username field first
+    let snap = await adminDb()
       .collection('Admins')
       .where('username', '==', username)
       .limit(1)
       .get();
+
+    // Fallback: try treating input as email directly
+    if (snap.empty) {
+      snap = await adminDb()
+        .collection('Admins')
+        .where('email', '==', username)
+        .limit(1)
+        .get();
+    }
 
     if (snap.empty) return res.err('Username not found.', 404);
     return res.ok({ email: snap.docs[0].data().email });
