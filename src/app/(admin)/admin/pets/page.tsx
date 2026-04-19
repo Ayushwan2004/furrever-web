@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRTPets } from '@/hooks/useRealtime';
 import { petsApi } from '@/lib/api';
-import { emailService } from '@/lib/email';
+// import { emailService } from '@/lib/email';
 import { AdminTopbar, Modal, Badge, Avatar, DetailRow, ActionBtn } from '@/components/admin/AdminShared';
 import DataTable, { Column } from '@/components/admin/DataTable';
 import { fmtDate, truncate } from '@/utils';
@@ -54,28 +54,15 @@ export default function PetsPage() {
   ];
 
   async function handleRemove() {
-    if (!removeTarget || !reason.trim()) { toast.error('Please enter a reason.'); return; }
-    setBusy(true);
-    try {
-      const result: any = await petsApi.remove(removeTarget.id, reason);
-      // Send email to pet owner notifying them of the removal
-      if (result?.ownerEmail) {
-        try {
-          await emailService.petRemoved(
-            result.ownerEmail,
-            result.ownerName || 'Pet Owner',
-            result.petName   || removeTarget.name,
-            reason,
-          );
-        } catch (emailErr) {
-          console.warn('[Pets] Email send failed (non-critical):', emailErr);
-        }
-      }
-      toast.success(`Pet removed: ${removeTarget.name}`);
-      setReasonModal(false); setRemoveTarget(null); setReason('');
-    } catch (e:any) { toast.error(e.message); }
-    setBusy(false);
-  }
+  if (!removeTarget || !reason.trim()) { toast.error('Please enter a reason.'); return; }
+  setBusy(true);
+  try {
+    await petsApi.remove(removeTarget.id, reason);
+    toast.success(`Pet removed: ${removeTarget.name}`);
+    setReasonModal(false); setRemoveTarget(null); setReason('');
+  } catch (e:any) { toast.error(e.message); }
+  setBusy(false);
+}
 
   return (
     <div>
