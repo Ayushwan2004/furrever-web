@@ -1,6 +1,6 @@
 import 'server-only'; 
 import nodemailer from "nodemailer";
-const SITE = process.env.NEXT_PUBLIC_APP_URL || "https://furrever.netlify.app";
+const SITE = process.env.NEXT_PUBLIC_APP_URL;
 
 function getTransporter() {
   const user = process.env.GMAIL_SMTP_USER;
