@@ -107,7 +107,7 @@ export default function PromoPage() {
               <div className="border-2 border-[#f0e8d5] rounded-xl overflow-hidden">
                 <div className="bg-primary px-5 py-3 font-black text-sm text-[#1b1a18]">🐾 FurrEver — {form.subject}</div>
                 <div className="px-5 py-4 text-sm text-[#543e35] whitespace-pre-wrap bg-white">{form.body}</div>
-                <div className="px-5 py-3 bg-[#fdf4e3] text-[10px] text-[#9B6E50]">FurrEver · Powered by Resend</div>
+                {/* <div className="px-5 py-3 bg-[#fdf4e3] text-[10px] text-[#9B6E50]">FurrEver · Powered by Resend</div> */}
               </div>
             )}
 
@@ -116,7 +116,7 @@ export default function PromoPage() {
               <div className="p-3.5 bg-green-50 border border-green-200 rounded-xl text-sm font-bold text-green-700">
                 ✓ Sent to {result.count} of {result.total} recipients
                 {result.count < result.total && (
-                  <span className="text-amber-600 ml-2">({result.total - result.count} failed — check Resend logs)</span>
+                  <span className="text-amber-600 ml-2">({result.total - result.count})</span>
                 )}
               </div>
             )}
@@ -125,7 +125,7 @@ export default function PromoPage() {
             {busy && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs font-bold text-blue-700 flex items-center gap-2">
                 <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                Sending via Resend… this may take a moment for large lists.
+                {/* Sending via Resend… this may take a moment for large lists. */}
               </div>
             )}
 

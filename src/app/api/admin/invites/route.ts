@@ -1,7 +1,6 @@
 // src/app/api/admin/invites/route.ts
-// CHANGED: Sends invite email via Resend instead of returning to frontend for EmailJS
 import { NextRequest } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
+import { adminDb, adminAuth } from '@/lib/firebase/admin';
 import { verifyAdmin, res } from '@/lib/apiMiddleware';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { emailService } from '@/lib/email';
@@ -25,23 +24,81 @@ export async function POST(req: NextRequest) {
     const { email, role, invitedByName } = await req.json();
     if (!email) return res.err('Email is required', 400);
 
-    const code = 'FADMIN-' + Math.random().toString(36).slice(2, 12).toUpperCase();
+    // ── Derive username + password ────────────────────────────────────────────
+    // username: FurrEver@<localpart>   e.g. FurrEver@john
+    // password: <email>@furrever.admin#
+    const localPart = email.split('@')[0];
+   const username = `furrever@${localPart}`;
+   const password = `furrever@$#FADMIN-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+
+    // ── Create Firebase Auth account ──────────────────────────────────────────
+    let firebaseUid: string;
+    try {
+      // Check if user already exists
+      const existing = await adminAuth().getUserByEmail(email).catch(() => null);
+      if (existing) {
+        // Update password + displayName if already exists
+        await adminAuth().updateUser(existing.uid, { displayName: username, password });
+        firebaseUid = existing.uid;
+      } else {
+        const created = await adminAuth().createUser({
+          email,
+          password,
+          displayName: username,
+          emailVerified: true,
+        });
+        firebaseUid = created.uid;
+      }
+    } catch (authErr: any) {
+      return res.err(`Failed to create admin account: ${authErr.message}`, 500);
+    }
+
+    // ── Write to Firestore users collection ───────────────────────────────────
+    await adminDb().collection('users').doc(firebaseUid).set({
+      uid:           firebaseUid,
+      email,
+      name:          username,
+      role:          'admin',
+      adminRole:     role || 'editor',
+      adminStatus:   'active',
+      petPostIds:    [],
+      favorites:     [],
+      adoptedPets:   [],
+      emailVerified: true,
+      createdAt:     FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    // ── Write to Admins collection ────────────────────────────────────────────
+    await adminDb().collection('Admins').doc(firebaseUid).set({
+      uid:           firebaseUid,
+      email,
+      username,
+      role:          role || 'editor',
+      status:        'invited',
+      invitedBy:     admin.uid,
+      invitedByName: invitedByName || admin.name || 'Admin',
+      createdAt:     FieldValue.serverTimestamp(),
+    });
+
+    // ── Create invite code ────────────────────────────────────────────────────
+    const code      = 'FADMIN-' + Math.random().toString(36).slice(2, 12).toUpperCase();
     const expiresAt = Timestamp.fromDate(new Date(Date.now() + 7 * 86400 * 1000));
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin/accept-invite?code=${code}`;
 
-    // Save to Firestore first
     const ref = await adminDb().collection('adminInvites').add({
       code,
       email,
-      role: role || 'editor',
-      invitedBy: admin.uid,
+      username,
+      role:          role || 'editor',
+      invitedBy:     admin.uid,
       invitedByName: invitedByName || admin.name || 'Admin',
-      status: 'pending',
-      createdAt: FieldValue.serverTimestamp(),
+      status:        'pending',
+      firebaseUid,
+      createdAt:     FieldValue.serverTimestamp(),
       expiresAt,
     });
 
-    // Send email via Resend (server-side, no EmailJS needed)
+    // ── Send email ────────────────────────────────────────────────────────────
     let emailSent = false;
     try {
       await emailService.adminInvite(
@@ -49,15 +106,24 @@ export async function POST(req: NextRequest) {
         invitedByName || admin.name || 'Admin',
         code,
         role || 'editor',
-        inviteUrl
+        inviteUrl,
+        username,
+        password,
       );
       emailSent = true;
     } catch (emailErr) {
       console.error('[Invite] Email failed:', emailErr);
-      // Don't fail the whole request — invite still created, admin can share code manually
     }
 
-    return res.ok({ id: ref.id, code, inviteUrl, email, emailSent });
+    return res.ok({
+      id: ref.id,
+      code,
+      inviteUrl,
+      email,
+      username,
+      password,
+      emailSent,
+    });
   } catch (e: any) {
     return res.err(e.message);
   }

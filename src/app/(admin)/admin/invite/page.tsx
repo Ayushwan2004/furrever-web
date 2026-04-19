@@ -1,6 +1,5 @@
 'use client';
 // src/app/(admin)/admin/invite/page.tsx
-// CHANGED: Removed emailService import — email is now sent from the API route (server-side Resend)
 import { useState } from 'react';
 import { useRTInvites } from '@/hooks/useRealtime';
 import { invitesApi } from '@/lib/api';
@@ -10,33 +9,42 @@ import DataTable, { Column } from '@/components/admin/DataTable';
 import { fmtDate } from '@/utils';
 import toast from 'react-hot-toast';
 
+interface InviteResult {
+  code: string;
+  url: string;
+  email: string;
+  username: string;
+  password: string;
+  emailSent: boolean;
+}
+
 export default function InvitePage() {
   const { data: invites, loading } = useRTInvites();
   const { user: me } = useAuth();
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState('editor');
-  const [busy, setBusy] = useState(false);
-  const [lastInvite, setLastInvite] = useState<{ code: string; url: string; email: string; emailSent: boolean } | null>(null);
+  const [email, setEmail]         = useState('');
+  const [role, setRole]           = useState('editor');
+  const [busy, setBusy]           = useState(false);
+  const [lastInvite, setLastInvite] = useState<InviteResult | null>(null);
 
   async function handleInvite() {
     if (!email) { toast.error('Enter an email address.'); return; }
     setBusy(true);
     try {
-      // Email is sent server-side by the API route via Resend
       const res: any = await invitesApi.send({
         email,
         role,
         invitedByName: me?.name || 'Admin',
         invitedById: me?.uid,
       });
-
-      if (res.emailSent) {
-        toast.success(`Invite sent to ${email}!`);
-      } else {
-        toast.success(`Invite created! Email delivery failed — share the code manually.`);
-      }
-
-      setLastInvite({ code: res.code, url: res.inviteUrl, email, emailSent: res.emailSent });
+      setLastInvite({
+        code:      res.code,
+        url:       res.inviteUrl,
+        email,
+        username:  res.username,
+        password:  res.password,
+        emailSent: res.emailSent,
+      });
+      toast.success(res.emailSent ? `Invite + credentials sent to ${email}!` : `Invite created — email failed, share manually.`);
       setEmail('');
       setRole('editor');
     } catch (e: any) {
@@ -45,37 +53,55 @@ export default function InvitePage() {
     setBusy(false);
   }
 
+  function copy(text: string, label: string) {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied!`);
+  }
+
+  function copyAll(inv: InviteResult) {
+    const text =
+`FurrEver Admin Credentials
+──────────────────────────
+Email:    ${inv.email}
+Username: ${inv.username}
+Password: ${inv.password}
+──────────────────────────
+Invite Code: ${inv.code}
+Accept URL:  ${inv.url}
+──────────────────────────
+⚠️ Change your password after first login.`;
+    navigator.clipboard.writeText(text);
+    toast.success('All credentials copied!');
+  }
+
   async function handleRevoke(id: string) {
     if (!confirm('Revoke this invite?')) return;
-    try {
-      await invitesApi.revoke(id);
-      toast.success('Invite revoked');
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+    try { await invitesApi.revoke(id); toast.success('Invite revoked'); }
+    catch (e: any) { toast.error(e.message); }
   }
 
   const roleColors: Record<string, string> = {
-    admin: 'bg-amber-100 text-amber-800 border-amber-300',
+    admin:  'bg-amber-100 text-amber-800 border-amber-300',
     editor: 'bg-blue-100 text-blue-700 border-blue-200',
     viewer: 'bg-gray-100 text-gray-600 border-gray-200',
   };
 
   const columns: Column<any>[] = [
-    { key: 'email', label: 'Invited Email', sortable: true, render: (r) => <span className="font-bold text-sm">{r.email}</span> },
-    { key: 'role', label: 'Role', render: (r) => <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${roleColors[r.role] || ''}`}>{r.role}</span> },
-    { key: 'code', label: 'Code', render: (r) => <span className="font-mono text-xs bg-[#f0e8d5] px-2 py-1 rounded-lg">{r.code}</span> },
-    { key: 'status', label: 'Status', render: (r) => <Badge status={r.status} /> },
-    { key: 'invitedByName', label: 'Invited By', render: (r) => <span className="text-sm">{r.invitedByName}</span> },
-    { key: 'createdAt', label: 'Created', sortable: true, render: (r) => <span className="text-xs text-[#9B6E50]">{fmtDate(r.createdAt)}</span> },
-    { key: 'expiresAt', label: 'Expires', render: (r) => <span className="text-xs text-[#9B6E50]">{fmtDate(r.expiresAt)}</span> },
+    { key: 'email',         label: 'Invited Email',  sortable: true, render: (r) => <span className="font-bold text-sm">{r.email}</span> },
+    { key: 'username',      label: 'Username',        render: (r) => <span className="font-mono text-xs text-[#9B6E50]">{r.username || '—'}</span> },
+    { key: 'role',          label: 'Role',            render: (r) => <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${roleColors[r.role] || ''}`}>{r.role}</span> },
+    { key: 'code',          label: 'Code',            render: (r) => <span className="font-mono text-xs bg-[#f0e8d5] px-2 py-1 rounded-lg">{r.code}</span> },
+    { key: 'status',        label: 'Status',          render: (r) => <Badge status={r.status} /> },
+    { key: 'invitedByName', label: 'Invited By',      render: (r) => <span className="text-sm">{r.invitedByName}</span> },
+    { key: 'createdAt',     label: 'Created',         sortable: true, render: (r) => <span className="text-xs text-[#9B6E50]">{fmtDate(r.createdAt)}</span> },
+    { key: 'expiresAt',     label: 'Expires',         render: (r) => <span className="text-xs text-[#9B6E50]">{fmtDate(r.expiresAt)}</span> },
     {
       key: 'actions', label: 'Actions',
       render: (r) => (
         <div className="flex gap-1.5">
           {r.status === 'pending' && (
             <>
-              <ActionBtn onClick={() => { navigator.clipboard.writeText(r.code); toast.success('Code copied!'); }} variant="info">📋 Copy</ActionBtn>
+              <ActionBtn onClick={() => copy(r.code, 'Code')} variant="info">📋 Code</ActionBtn>
               <ActionBtn onClick={() => handleRevoke(r.id)} variant="danger">Revoke</ActionBtn>
             </>
           )}
@@ -88,6 +114,7 @@ export default function InvitePage() {
     <div>
       <AdminTopbar title="Invite Admins" subtitle="Grant admin access to team members" />
       <div className="p-7 space-y-7">
+
         {/* Compose */}
         <div className="bg-white rounded-2xl p-6 border border-[#f0e8d5]">
           <div className="font-extrabold text-base mb-5">✉️ Send Admin Invite</div>
@@ -97,17 +124,15 @@ export default function InvitePage() {
               <input
                 type="email" value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="colleague@example.com"
                 onKeyDown={e => e.key === 'Enter' && handleInvite()}
+                placeholder="colleague@example.com"
                 className="w-full px-4 py-3 rounded-xl border-2 border-[#f0e8d5] focus:border-primary focus:outline-none text-sm font-semibold bg-[#fdf4e3]"
               />
             </div>
             <div>
               <label className="block text-xs font-extrabold uppercase tracking-wider text-[#9B6E50] mb-2">Access Level</label>
-              <select
-                value={role} onChange={e => setRole(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-2 border-[#f0e8d5] focus:border-primary focus:outline-none text-sm font-semibold bg-[#fdf4e3]"
-              >
+              <select value={role} onChange={e => setRole(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border-2 border-[#f0e8d5] focus:border-primary focus:outline-none text-sm font-semibold bg-[#fdf4e3]">
                 <option value="admin">Admin (Full Access)</option>
                 <option value="editor">Editor (Edit + View)</option>
                 <option value="viewer">Viewer (View Only)</option>
@@ -115,21 +140,44 @@ export default function InvitePage() {
             </div>
           </div>
 
-          <div className="mt-4 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs font-semibold text-blue-700">
-            ℹ️ An invite email will be sent automatically via Resend. A unique 7-day code is generated and included. The recipient must log in and visit the invite URL to activate admin access.
-          </div>
+          {/* <div className="mt-4 p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs font-semibold text-blue-700">
+            ℹ️ A Firebase account is created automatically. Credentials (username + password) are emailed via Gmail SMTP and shown below for manual sharing. The invite URL is valid for 7 days.
+          </div> */}
 
+          {/* Credentials panel */}
           {lastInvite && (
-            <div className={`mt-4 p-4 rounded-xl border ${lastInvite.emailSent ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-              <div className={`font-bold text-sm mb-2 ${lastInvite.emailSent ? 'text-green-700' : 'text-amber-700'}`}>
-                {lastInvite.emailSent ? `✓ Invite emailed to ${lastInvite.email}` : `⚠️ Email failed — share code manually with ${lastInvite.email}`}
+            <div className={`mt-5 rounded-2xl border-2 overflow-hidden ${lastInvite.emailSent ? 'border-green-300' : 'border-amber-300'}`}>
+              <div className={`px-5 py-3 flex items-center justify-between ${lastInvite.emailSent ? 'bg-green-50' : 'bg-amber-50'}`}>
+                <span className={`font-extrabold text-sm ${lastInvite.emailSent ? 'text-green-700' : 'text-amber-700'}`}>
+                  {lastInvite.emailSent ? `✓ Email sent to ${lastInvite.email}` : `⚠️ Email failed — share credentials manually`}
+                </span>
+                <button onClick={() => copyAll(lastInvite)}
+                  className="text-xs font-extrabold bg-white border border-current px-3 py-1.5 rounded-full hover:opacity-80 transition">
+                  📋 Copy All
+                </button>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="font-mono text-sm bg-white border border-green-300 px-3 py-1.5 rounded-lg">{lastInvite.code}</span>
-                <button onClick={() => { navigator.clipboard.writeText(lastInvite.code); toast.success('Copied!'); }}
-                  className="text-xs font-bold text-green-700 underline">Copy Code</button>
-                <button onClick={() => { navigator.clipboard.writeText(lastInvite.url); toast.success('URL Copied!'); }}
-                  className="text-xs font-bold text-green-700 underline">Copy URL</button>
+
+              <div className="bg-white divide-y divide-[#f0e8d5]">
+                {[
+                  { label: 'Email',    value: lastInvite.email },
+                  { label: 'Username', value: lastInvite.username },
+                  { label: 'Password', value: lastInvite.password },
+                  { label: 'Code',     value: lastInvite.code },
+                  { label: 'URL',      value: lastInvite.url },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between px-5 py-3 gap-4">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#9B6E50] w-20 shrink-0">{label}</span>
+                    <span className="font-mono text-xs text-[#1b1a18] break-all flex-1">{value}</span>
+                    <button onClick={() => copy(value, label)}
+                      className="shrink-0 text-[10px] font-extrabold text-primary border border-primary/30 px-2.5 py-1 rounded-full hover:bg-primary/10 transition">
+                      Copy
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-5 py-3 bg-red-50 border-t border-red-100 text-[11px] text-red-600 font-bold">
+                ⚠️ Password is shown only once. Remind the invitee to change it after first login.
               </div>
             </div>
           )}
@@ -137,7 +185,7 @@ export default function InvitePage() {
           <div className="mt-5 flex justify-end">
             <button onClick={handleInvite} disabled={busy || !email}
               className="flex items-center gap-2 bg-primary text-[#1b1a18] px-6 py-2.5 rounded-full font-extrabold text-sm shadow-[3px_3px_0_#d98b19] hover:shadow-[5px_5px_0_#d98b19] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all disabled:opacity-50">
-              {busy ? 'Sending…' : '✉️ Send Invite'}
+              {busy ? 'Sending…' : '✉️ Create & Send Invite'}
             </button>
           </div>
         </div>
@@ -145,7 +193,7 @@ export default function InvitePage() {
         {/* Role breakdown */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { role: 'admin', icon: '👑', desc: 'Full access — create, edit, delete, invite' },
+            { role: 'admin',  icon: '👑', desc: 'Full access — create, edit, delete, invite' },
             { role: 'editor', icon: '✏️', desc: 'Create and edit records, cannot delete or invite' },
             { role: 'viewer', icon: '👁', desc: 'View-only access to all data' },
           ].map(r => (
@@ -159,13 +207,13 @@ export default function InvitePage() {
 
         <DataTable
           data={invites} columns={columns} loading={loading}
-          searchKeys={['email', 'code', 'invitedByName']}
+          searchKeys={['email', 'code', 'invitedByName', 'username']}
           filterKey="status"
           filterOptions={[
-            { label: 'Pending', value: 'pending' },
+            { label: 'Pending',  value: 'pending' },
             { label: 'Accepted', value: 'accepted' },
-            { label: 'Expired', value: 'expired' },
-            { label: 'Revoked', value: 'revoked' },
+            { label: 'Expired',  value: 'expired' },
+            { label: 'Revoked',  value: 'revoked' },
           ]}
           title="Sent Invites"
           emptyIcon="✉️" emptyText="No invites sent yet"

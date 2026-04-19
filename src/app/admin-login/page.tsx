@@ -1,21 +1,35 @@
 'use client';
 // src/app/admin-login/page.tsx
-// Standalone — NOT inside (admin) group, so no auth guard wraps it
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
+async function resolveIdentifier(identifier: string): Promise<string> {
+  // If it's already a valid email, return as-is
+  if (identifier.includes('@') && identifier.includes('.') && !identifier.startsWith('FurrEver@')) {
+    return identifier;
+  }
+  // Username format: FurrEver@<localpart> — look up real email from Admins collection
+  const res = await fetch('/api/admin/resolve-username', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: identifier }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.email) throw new Error(data.error || 'Username not found.');
+  return data.email;
+}
+
 export default function AdminLoginPage() {
   const { login, user, loading } = useAuth();
   const router = useRouter();
-  const [email, setEmail]     = useState('');
-  const [pw, setPw]           = useState('');
-  const [busy, setBusy]       = useState(false);
-  const [err, setErr]         = useState('');
+  const [identifier, setIdentifier] = useState('');   // email OR username
+  const [pw, setPw]                 = useState('');
+  const [busy, setBusy]             = useState(false);
+  const [err, setErr]               = useState('');
 
-  // Already logged in → go straight to dashboard
   useEffect(() => {
     if (!loading && user && (user.role === 'admin' || (user as any).adminRole)) {
       router.replace('/admin/dashboard');
@@ -23,29 +37,31 @@ export default function AdminLoginPage() {
   }, [user, loading, router]);
 
   async function handle() {
-    if (!email || !pw) { setErr('Please enter your email and password.'); return; }
+    if (!identifier || !pw) { setErr('Please enter your username/email and password.'); return; }
     setBusy(true); setErr('');
-    const result = await login(email, pw);
-    setBusy(false);
-    if (result.success) {
-      toast.success('Welcome back! 🐾');
-      router.replace('/admin/dashboard');
-    } else {
-      setErr(result.error || 'Login failed. Please try again.');
+    try {
+      const email = await resolveIdentifier(identifier.trim());
+      const result = await login(email, pw);
+      if (result.success) {
+        toast.success('Welcome back! 🐾');
+        router.replace('/admin/dashboard');
+      } else {
+        setErr(result.error || 'Login failed. Please try again.');
+      }
+    } catch (e: any) {
+      setErr(e.message || 'Login failed.');
     }
+    setBusy(false);
   }
 
-  // Show loading while checking existing session
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#fdf4e3] flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl mb-3 animate-pulse">🐾</div>
-          <div className="text-sm font-bold text-[#543e35]">Checking session…</div>
-        </div>
+  if (loading) return (
+    <div className="min-h-screen bg-[#fdf4e3] flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-4xl mb-3 animate-pulse">🐾</div>
+        <div className="text-sm font-bold text-[#543e35]">Checking session…</div>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#fdf4e3] flex items-center justify-center px-5">
@@ -55,11 +71,8 @@ export default function AdminLoginPage() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-[420px] bg-white rounded-3xl p-11 border-2 border-[#f0e8d5] shadow-[0_20px_60px_rgba(0,0,0,.07)] relative overflow-hidden"
       >
-        {/* Top gradient bar */}
-        <div
-          className="absolute top-0 left-0 right-0 h-1 rounded-t-3xl"
-          style={{ background: 'linear-gradient(90deg,#d98b19,#f4a900,#FFC133,#f4a900)' }}
-        />
+        <div className="absolute top-0 left-0 right-0 h-1 rounded-t-3xl"
+          style={{ background: 'linear-gradient(90deg,#d98b19,#f4a900,#FFC133,#f4a900)' }} />
 
         <div className="text-center mb-8">
           <div className="font-display text-3xl font-black mb-1">
@@ -74,16 +87,23 @@ export default function AdminLoginPage() {
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-extrabold uppercase tracking-wider text-[#9B6E50] mb-1.5">
-              Admin Email
+              Username or Email
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+              type="text"
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handle()}
-              placeholder="admin@furrever.app"
+              placeholder="FurrEver@username or email"
+              autoComplete="username"
               className="w-full px-4 py-3 rounded-xl border-2 border-[#f0e8d5] bg-[#fdf4e3] focus:border-[#f4a900] focus:outline-none focus:ring-4 focus:ring-[#f4a900]/10 font-semibold text-sm transition-all"
             />
+            {/* Live hint */}
+            {identifier && !identifier.includes('.') && identifier.includes('@') && (
+              <p className="text-[11px] text-[#9B6E50] mt-1.5 font-semibold">
+                🔍 Username detected — will resolve to your registered email
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-extrabold uppercase tracking-wider text-[#9B6E50] mb-1.5">
@@ -95,6 +115,7 @@ export default function AdminLoginPage() {
               onChange={e => setPw(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handle()}
               placeholder="••••••••••"
+              autoComplete="current-password"
               className="w-full px-4 py-3 rounded-xl border-2 border-[#f0e8d5] bg-[#fdf4e3] focus:border-[#f4a900] focus:outline-none focus:ring-4 focus:ring-[#f4a900]/10 font-semibold text-sm transition-all"
             />
           </div>
@@ -115,9 +136,7 @@ export default function AdminLoginPage() {
         </button>
 
         <div className="mt-6 text-center">
-          <a href="/" className="text-xs font-bold text-[#f4a900] hover:underline">
-            ← Back to FurrEver
-          </a>
+          <a href="/" className="text-xs font-bold text-[#f4a900] hover:underline">← Back to FurrEver</a>
         </div>
       </motion.div>
     </div>
