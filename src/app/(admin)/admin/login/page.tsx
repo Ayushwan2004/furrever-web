@@ -9,14 +9,33 @@ import toast from 'react-hot-toast';
 export default function AdminLoginPage() {
   const { login } = useAuth();
   const router = useRouter();
-  const [email, setEmail]   = useState('');
-  const [pw, setPw]         = useState('');
-  const [loading, setLoading] = useState(false);
-  const [err, setErr]       = useState('');
+  const [identifier, setIdentifier] = useState(''); // email or username
+  const [pw, setPw]                 = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [err, setErr]               = useState('');
 
   async function handle() {
-    if (!email || !pw) { setErr('Please enter email and password.'); return; }
+    if (!identifier || !pw) { setErr('Please enter email/username and password.'); return; }
     setLoading(true); setErr('');
+
+    let email = identifier.trim();
+
+    // ✅ If not an email, resolve username → email via API
+    if (!email.includes('@')) {
+      try {
+        const r = await fetch('/api/admin/resolve-username', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: email }),
+        });
+        const data = await r.json();
+        if (!r.ok) { setErr('Username not found.'); setLoading(false); return; }
+        email = data.data.email;
+      } catch {
+        setErr('Could not resolve username.'); setLoading(false); return;
+      }
+    }
+
     const result = await login(email, pw);
     setLoading(false);
     if (result.success) {
@@ -31,7 +50,6 @@ export default function AdminLoginPage() {
     <div className="min-h-screen bg-[#fdf4e3] flex items-center justify-center px-5">
       <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.5}}
         className="w-full max-w-[420px] bg-white rounded-3xl p-11 border-2 border-[#f0e8d5] shadow-[0_20px_60px_rgba(0,0,0,.07)] relative overflow-hidden">
-        {/* Top gradient bar */}
         <div className="absolute top-0 left-0 right-0 h-1 rounded-t-3xl"
              style={{background:'linear-gradient(90deg,#d98b19,#f4a900,#FFC133,#f4a900)',backgroundSize:'200% 100%',animation:'shimmer 3s linear infinite'}}/>
         <div className="text-center mb-8">
@@ -43,14 +61,20 @@ export default function AdminLoginPage() {
         </div>
         <div className="space-y-4">
           <div>
-            <label className="block text-xs font-extrabold uppercase tracking-wider text-[#9B6E50] mb-1.5">Admin Email</label>
-            <input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handle()}
-              placeholder="admin@furrever.app"
+            <label className="block text-xs font-extrabold uppercase tracking-wider text-[#9B6E50] mb-1.5">
+              Email or Username
+            </label>
+            <input
+              type="text" value={identifier} onChange={e=>setIdentifier(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&handle()}
+              placeholder="admin@furrever.app or furrever@username"
               className="w-full px-4 py-3 rounded-xl border-2 border-[#f0e8d5] bg-[#fdf4e3] focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 font-semibold text-sm transition-all"/>
           </div>
           <div>
             <label className="block text-xs font-extrabold uppercase tracking-wider text-[#9B6E50] mb-1.5">Password</label>
-            <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handle()}
+            <input
+              type="password" value={pw} onChange={e=>setPw(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&handle()}
               placeholder="••••••••••"
               className="w-full px-4 py-3 rounded-xl border-2 border-[#f0e8d5] bg-[#fdf4e3] focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 font-semibold text-sm transition-all"/>
           </div>
