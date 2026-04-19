@@ -15,14 +15,12 @@ export default function AdminLoginPage() {
   const [pw, setPw]                 = useState('');
   const [loading, setLoading]       = useState(false);
   const [err, setErr]               = useState('');
-  const [forgotMode, setForgotMode] = useState(false);
   const [forgotSent, setForgotSent] = useState(false);
 
-  // ✅ Username = starts with 'furrever@', email = contains @ but not that prefix
   const isUsername = (v: string) => v.startsWith('furrever@');
 
   async function resolveEmail(input: string): Promise<string | null> {
-    if (!isUsername(input)) return input; // already an email
+    if (!isUsername(input)) return input;
     try {
       const r = await fetch('/api/admin/resolve-username', {
         method: 'POST',
@@ -30,18 +28,20 @@ export default function AdminLoginPage() {
         body: JSON.stringify({ username: input }),
       });
       const data = await r.json();
+      console.log('STATUS:', r.status, 'BODY:', JSON.stringify(data));
       if (!r.ok) return null;
-      return data.data.email;
-    } catch { return null; }
+      return data.data.email ?? null;
+    } catch (e) {
+      console.error('resolveEmail error:', e);
+      return null;
+    }
   }
 
   async function handle() {
     if (!identifier || !pw) { setErr('Please enter email/username and password.'); return; }
     setLoading(true); setErr('');
-
     const email = await resolveEmail(identifier.trim());
     if (!email) { setErr('Username not found.'); setLoading(false); return; }
-
     const result = await login(email, pw);
     setLoading(false);
     if (result.success) {
@@ -87,28 +87,24 @@ export default function AdminLoginPage() {
             <div className="text-4xl mb-3">📧</div>
             <div className="font-bold text-[#543e35]">Reset email sent!</div>
             <p className="text-xs text-[#9B6E50] mt-2 mb-5">Check your inbox and follow the link to reset your password.</p>
-            <button onClick={()=>{setForgotSent(false);setForgotMode(false);}} className="text-xs font-bold text-primary underline">Back to Login</button>
+            <button onClick={()=>setForgotSent(false)} className="text-xs font-bold text-primary underline">Back to Login</button>
           </div>
         ) : (
           <>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-extrabold uppercase tracking-wider text-[#9B6E50] mb-1.5">
-                  Email or Username
-                </label>
-                <input
-                  type="text" value={identifier} onChange={e=>{setIdentifier(e.target.value);setErr('');}}
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-[#9B6E50] mb-1.5">Email or Username</label>
+                <input type="text" value={identifier} onChange={e=>{setIdentifier(e.target.value);setErr('');}}
                   onKeyDown={e=>e.key==='Enter'&&handle()}
                   placeholder="admin@furrever.app or furrever@username"
                   className="w-full px-4 py-3 rounded-xl border-2 border-[#f0e8d5] bg-[#fdf4e3] focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 font-semibold text-sm transition-all"/>
                 {isUsername(identifier) && (
-                  <p className="text-[11px] text-[#9B6E50] mt-1 flex items-center gap-1">🔍 Username detected — will resolve to your registered email</p>
+                  <p className="text-[11px] text-[#9B6E50] mt-1">🔍 Username detected — will resolve to your registered email</p>
                 )}
               </div>
               <div>
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-[#9B6E50] mb-1.5">Password</label>
-                <input
-                  type="password" value={pw} onChange={e=>setPw(e.target.value)}
+                <input type="password" value={pw} onChange={e=>setPw(e.target.value)}
                   onKeyDown={e=>e.key==='Enter'&&handle()}
                   placeholder="••••••••••"
                   className="w-full px-4 py-3 rounded-xl border-2 border-[#f0e8d5] bg-[#fdf4e3] focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 font-semibold text-sm transition-all"/>
