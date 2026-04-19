@@ -1,19 +1,25 @@
 // src/lib/email.ts — SERVER ONLY — Nodemailer + Gmail SMTP
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
-const SITE = process.env.NEXT_PUBLIC_APP_URL || 'https://furrever.netlify.app';
+const SITE = process.env.NEXT_PUBLIC_APP_URL || "https://furrever.netlify.app";
 
 function getTransporter() {
   const user = process.env.GMAIL_SMTP_USER;
   const pass = process.env.GMAIL_SMTP_PASS;
-  if (!user || !pass) throw new Error('GMAIL_SMTP_USER or GMAIL_SMTP_PASS not set');
+  if (!user || !pass)
+    throw new Error("GMAIL_SMTP_USER or GMAIL_SMTP_PASS not set");
   return nodemailer.createTransport({
-    service: 'gmail',
+    service: "gmail",
     auth: { user, pass },
   });
 }
 
-async function sendEmail(to: string, subject: string, html: string, replyTo?: string) {
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  replyTo?: string,
+) {
   const transporter = getTransporter();
   const info = await transporter.sendMail({
     from: `"FurrEver 🐾" <${process.env.GMAIL_SMTP_USER}>`,
@@ -25,7 +31,12 @@ async function sendEmail(to: string, subject: string, html: string, replyTo?: st
   return { id: info.messageId };
 }
 
-function shell(accentColor: string, headerIcon: string, headerLabel: string, bodyHtml: string) {
+function shell(
+  accentColor: string,
+  headerIcon: string,
+  headerLabel: string,
+  bodyHtml: string,
+) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -58,7 +69,6 @@ p{font-size:15px;line-height:1.65;color:#543e35;margin-bottom:12px}
 }
 
 export const emailService = {
-
   // ── Admin Invite — credentials + link ─────────────────────────────────────
   adminInvite: (
     toEmail: string,
@@ -68,63 +78,86 @@ export const emailService = {
     url: string,
     username: string,
     password: string,
-  ) => sendEmail(
-    toEmail,
-    "You've Been Invited to FurrEver Admin ✉️",
-    shell('#F4A900', '✉️', 'Admin Invitation',
-      `<h2>You've been invited! 👋</h2>
-       <p><strong>${inviterName}</strong> has invited you to the <strong>FurrEver Admin Panel</strong> as <strong>${role}</strong>.</p>
-       <div class="box">
-         <div class="box-title">Your Login Credentials</div>
-         <div class="cred-row"><span class="cred-label">Username</span><span class="cred-value">${username}</span></div>
-         <div class="cred-row"><span class="cred-label">Email</span><span class="cred-value">${toEmail}</span></div>
-         <div class="cred-row" style="border:none"><span class="cred-label">Password</span><span class="cred-value">${password}</span></div>
-         <div class="box-sub" style="margin-top:12px">⚠️ Change your password after first login</div>
-       </div>
-       <div class="box" style="margin-top:8px">
-         <div class="box-title">Invite Code</div>
-         <div class="box-value">${code}</div>
-         <div class="box-sub">⏰ Expires in 7 days</div>
-       </div>
-       <p>Click below to accept your invitation and activate admin access.</p>
-       <a href="${url}" class="btn" style="background:#F4A900;color:#1b1a18;">Accept Invitation →</a>
-       <p style="margin-top:18px;font-size:12px;color:#9B6E50">Or copy this link:<br/><a href="${url}" style="color:#F4A900">${url}</a></p>`)
-  ),
+  ) =>
+    sendEmail(
+      toEmail,
+      "You've Been Invited to FurrEver Admin ✉️",
+      shell(
+        "#F4A900",
+        "✉️",
+        "Admin Invitation",
+        `<h2>You've been invited! 👋</h2>
+     <p><strong>${inviterName}</strong> has invited you to the <strong>FurrEver Admin Panel</strong> as <strong>${role}</strong>.</p>
+     <div class="box">
+       <div class="box-title">Your Login Credentials</div>
+       <div class="cred-row"><span class="cred-label">Username</span><span class="cred-value">${username}</span></div>
+       <div class="cred-row" style="border:none"><span class="cred-label">Password</span><span class="cred-value">${password}</span></div>
+       <div class="box-sub" style="margin-top:12px">⚠️ Change your password after first login. Login at the link below.</div>
+     </div>
+     <a href="${url}" class="btn" style="background:#F4A900;color:#1b1a18;">Accept Invitation →</a>`,
+      ),
+    ),
 
   // ── Promo ──────────────────────────────────────────────────────────────────
   promo: (toEmail: string, toName: string, subject: string, bodyText: string) =>
-    sendEmail(toEmail, subject, shell('#F4A900', '📣', 'FurrEver Update',
-      `<h2>${subject}</h2>
+    sendEmail(
+      toEmail,
+      subject,
+      shell(
+        "#F4A900",
+        "📣",
+        "FurrEver Update",
+        `<h2>${subject}</h2>
        <p>Hi <strong>${toName}</strong>,</p>
        <p style="white-space:pre-wrap">${bodyText}</p>
-       <a href="${SITE}" class="btn" style="background:#F4A900;color:#1b1a18;">Browse Pets →</a>`
-    )),
+       <a href="${SITE}" class="btn" style="background:#F4A900;color:#1b1a18;">Browse Pets →</a>`,
+      ),
+    ),
 
   // ── Account terminated ─────────────────────────────────────────────────────
   terminate: (toEmail: string, toName: string, reason: string) =>
-    sendEmail(toEmail, 'Your FurrEver Account Has Been Suspended', shell('#dc2626', '🚫', 'Account Notice',
-      `<h2>Account Suspended 🚫</h2>
+    sendEmail(
+      toEmail,
+      "Your FurrEver Account Has Been Suspended",
+      shell(
+        "#dc2626",
+        "🚫",
+        "Account Notice",
+        `<h2>Account Suspended 🚫</h2>
        <p>Dear <strong>${toName}</strong>,</p>
        <p>Your FurrEver account has been suspended by our moderation team.</p>
        <div class="reason-box">
          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#dc2626;margin-bottom:6px">Reason</div>
          <div>${reason}</div>
        </div>
-       <a href="${SITE}/contact" class="btn" style="background:#dc2626;color:#fff;">Contact Support →</a>`
-    )),
+       <a href="${SITE}/contact" class="btn" style="background:#dc2626;color:#fff;">Contact Support →</a>`,
+      ),
+    ),
 
   // ── Pet removed ────────────────────────────────────────────────────────────
-  petRemoved: (toEmail: string, toName: string, petName: string, reason: string) =>
-    sendEmail(toEmail, `Your Pet "${petName}" Has Been Removed — FurrEver`, shell('#ea580c', '🗑️', 'Listing Notice',
-      `<h2>Listing Removed 🗑️</h2>
+  petRemoved: (
+    toEmail: string,
+    toName: string,
+    petName: string,
+    reason: string,
+  ) =>
+    sendEmail(
+      toEmail,
+      `Your Pet "${petName}" Has Been Removed — FurrEver`,
+      shell(
+        "#ea580c",
+        "🗑️",
+        "Listing Notice",
+        `<h2>Listing Removed 🗑️</h2>
        <p>Dear <strong>${toName}</strong>,</p>
        <p>Your pet listing for <strong>${petName}</strong> has been removed.</p>
        <div class="reason-box" style="background:#fff7ed;border-color:#fed7aa">
          <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:#ea580c;margin-bottom:6px">Reason</div>
          <div>${reason}</div>
        </div>
-       <a href="${SITE}/contact" class="btn" style="background:#ea580c;color:#fff;">Contact Us →</a>`
-    )),
+       <a href="${SITE}/contact" class="btn" style="background:#ea580c;color:#fff;">Contact Us →</a>`,
+      ),
+    ),
 
   // ── Adoption certificate ───────────────────────────────────────────────────
   certificate: (
@@ -136,11 +169,15 @@ export const emailService = {
     breed: string,
     issuedAt: string,
     message: string,
-  ) => sendEmail(
-    toEmail,
-    `🏆 Your FurrEver Certificate for ${petName}!`,
-    shell('#d98b19', '🏆', 'Adoption Certificate',
-      `<h2>Congratulations, ${toName}! 🎉</h2>
+  ) =>
+    sendEmail(
+      toEmail,
+      `🏆 Your FurrEver Certificate for ${petName}!`,
+      shell(
+        "#d98b19",
+        "🏆",
+        "Adoption Certificate",
+        `<h2>Congratulations, ${toName}! 🎉</h2>
        <p>Your <strong>${certType}</strong> of <strong>${petName}</strong> has been officially approved and recorded on FurrEver.</p>
        <div class="box" style="border-color:#F4A900;text-align:center">
          <div style="font-size:36px;margin-bottom:8px">🏆</div>
@@ -153,16 +190,24 @@ export const emailService = {
        </div>
        <p>${message}</p>
        <p>Welcome to the FurrEver family! Every pet deserves a forever home. 🐶❤️</p>
-       <a href="${SITE}" class="btn" style="background:#F4A900;color:#1b1a18;">Open FurrEver →</a>`
-    )
-  ),
+       <a href="${SITE}" class="btn" style="background:#F4A900;color:#1b1a18;">Open FurrEver →</a>`,
+      ),
+    ),
 
   // ── Contact form → admin inbox ─────────────────────────────────────────────
-  contactForm: (name: string, email: string, subject: string, message: string) =>
+  contactForm: (
+    name: string,
+    email: string,
+    subject: string,
+    message: string,
+  ) =>
     sendEmail(
       process.env.GMAIL_SMTP_USER!,
       `New Message from ${name} — FurrEver`,
-      shell('#F4A900', '📬', 'Contact Form',
+      shell(
+        "#F4A900",
+        "📬",
+        "Contact Form",
         `<h2>New Contact Message 📬</h2>
          <p><strong>From:</strong> ${name} &lt;${email}&gt;</p>
          <p><strong>Subject:</strong> ${subject}</p>
@@ -170,29 +215,38 @@ export const emailService = {
            <div class="box-title">Message</div>
            <p style="margin-top:8px;white-space:pre-wrap">${message}</p>
          </div>
-         <p style="font-size:12px;color:#9B6E50">Reply directly to this email to respond to ${name}.</p>`
+         <p style="font-size:12px;color:#9B6E50">Reply directly to this email to respond to ${name}.</p>`,
       ),
       email,
     ),
 
   // ── Adoption decision ──────────────────────────────────────────────────────
-  decision: (toEmail: string, toName: string, decision: string, petName: string, message: string) => {
-    const approved = decision === 'approved';
+  decision: (
+    toEmail: string,
+    toName: string,
+    decision: string,
+    petName: string,
+    message: string,
+  ) => {
+    const approved = decision === "approved";
     return sendEmail(
       toEmail,
       `Update on Your Adoption for ${petName} — FurrEver`,
-      shell(approved ? '#16a34a' : '#dc2626', '🤝', 'Adoption Update',
-        `<h2>${approved ? '🎉 Adoption Approved!' : 'Application Update'}</h2>
+      shell(
+        approved ? "#16a34a" : "#dc2626",
+        "🤝",
+        "Adoption Update",
+        `<h2>${approved ? "🎉 Adoption Approved!" : "Application Update"}</h2>
          <p>Dear <strong>${toName}</strong>,</p>
          <p>We have an update on your adoption request for <strong>${petName}</strong>.</p>
-         <div class="box" style="border-color:${approved ? '#16a34a' : '#dc2626'}">
+         <div class="box" style="border-color:${approved ? "#16a34a" : "#dc2626"}">
            <div class="box-title">Decision</div>
-           <div class="box-value" style="color:${approved ? '#16a34a' : '#dc2626'}">${decision.toUpperCase()}</div>
+           <div class="box-value" style="color:${approved ? "#16a34a" : "#dc2626"}">${decision.toUpperCase()}</div>
            <div class="box-sub">${petName}</div>
          </div>
          <p>${message}</p>
-         <a href="${SITE}" class="btn" style="background:#F4A900;color:#1b1a18;">Open FurrEver →</a>`
-      )
+         <a href="${SITE}" class="btn" style="background:#F4A900;color:#1b1a18;">Open FurrEver →</a>`,
+      ),
     );
   },
 };

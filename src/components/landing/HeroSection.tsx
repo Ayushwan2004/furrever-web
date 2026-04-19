@@ -10,9 +10,9 @@ import PetIllustrators from '@/components/shared/PetIllustrators';
 gsap.registerPlugin(ScrollTrigger);
 
 const stats = [
-  { num: '1,247+', label: 'Happy Adoptions' },
-  { num: '340+',   label: 'Pets Available' },
-  { num: '98',     label: 'Partner Shelters' },
+  { num: '5+', label: 'Happy Adoptions' },
+  { num: '30+',   label: 'Pets Available' },
+  { num: '4+',     label: 'Partner Shelters' },
 ];
 
 const phonePets = [

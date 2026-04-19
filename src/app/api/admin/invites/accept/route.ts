@@ -7,16 +7,38 @@ import { FieldValue } from 'firebase-admin/firestore';
 export async function POST(req: NextRequest) {
   try {
     const { code, uid } = await req.json();
-    const snap = await adminDb().collection('adminInvites').where('code','==',code).where('status','==','pending').get();
+    if (!code || !uid) return res.err('code and uid required', 400);
+
+    // Find by code in Admins collection
+    const snap = await adminDb()
+      .collection('Admins')
+      .where('code', '==', code)
+      .where('status', '==', 'pending')
+      .limit(1)
+      .get();
+
     if (snap.empty) return res.err('Invalid or expired invite code', 400);
-    const inv = snap.docs[0]; const d = inv.data();
+
+    const docRef = snap.docs[0].ref;
+    const d      = snap.docs[0].data();
+
     if (d.expiresAt?.toDate?.() < new Date()) {
-      await inv.ref.update({ status: 'expired' }); return res.err('Invite code expired', 400);
+      await docRef.update({ status: 'expired' });
+      return res.err('Invite code expired', 400);
     }
-    const batch = adminDb().batch();
-    batch.update(inv.ref, { status: 'accepted', acceptedBy: uid, acceptedAt: FieldValue.serverTimestamp() });
-    batch.update(adminDb().collection('users').doc(uid), { role: 'admin', adminRole: d.role, adminGrantedBy: d.invitedBy, adminGrantedAt: FieldValue.serverTimestamp() });
-    await batch.commit();
-    return res.ok({ role: d.role });
-  } catch (e: any) { return res.err(e.message); }
+
+    // uid from Firebase Auth should match the aid
+    if (d.aid !== uid) return res.err('Account mismatch', 403);
+
+    await docRef.update({
+      status:         'accepted',
+      acceptedAt:     FieldValue.serverTimestamp(),
+      adminGrantedBy: d.invitedBy,
+      adminGrantedAt: FieldValue.serverTimestamp(),
+    });
+
+    return res.ok({ role: d.role, aid: d.aid });
+  } catch (e: any) {
+    return res.err(e.message);
+  }
 }

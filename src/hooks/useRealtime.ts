@@ -56,7 +56,6 @@ export function useRTUsers() {
 export function useRTAdoptions() {
   return useRealtimeCol('adoptions', [orderBy('createdAt', 'desc')]);
 }
-// ✅ FIXED: was 'certifications' — now points to the shared 'certificates' collection
 export function useRTCertifications() {
   return useRealtimeCol('certificates', [orderBy('issuedAt', 'desc')]);
 }
@@ -67,7 +66,7 @@ export function useRTNotifications() {
   return useRealtimeCol('notifications', [orderBy('createdAt', 'desc')]);
 }
 export function useRTInvites() {
-  return useRealtimeCol('adminInvites', [orderBy('createdAt', 'desc')]);
+  return useRealtimeCol('Admins', [orderBy('createdAt', 'desc')]);
 }
 export function useRTPromos() {
   return useRealtimeCol('promoEmails', [orderBy('sentAt', 'desc')]);

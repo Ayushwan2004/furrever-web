@@ -2,7 +2,7 @@
 // src/context/AuthContext.tsx
 import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/client';
 import { UserType } from '@/types';
 
@@ -23,44 +23,91 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const unsubDocRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const unsubAuth = onAuthStateChanged(auth, (fu) => {
+    const unsubAuth = onAuthStateChanged(auth, async (fu) => {
       setFbUser(fu);
       if (unsubDocRef.current) { unsubDocRef.current(); unsubDocRef.current = null; }
       if (!fu) { setUser(null); setLoading(false); return; }
-      // Realtime Firestore listener — mirrors RN AuthContext.fetchUserData exactly
-      unsubDocRef.current = onSnapshot(doc(db, 'users', fu.uid), (snap) => {
-        if (snap.exists()) {
-          setUser({ ...snap.data() as UserType, uid: fu.uid, emailVerified: !!fu.emailVerified });
-        } else {
-          setUser({ uid: fu.uid, email: fu.email!, name: fu.displayName || 'User',
-            role: 'adopter', petPostIds: [], favorites: [], adoptedPets: [],
-            emailVerified: !!fu.emailVerified, createdAt: null });
-        }
-        setLoading(false);
-      }, () => setLoading(false));
+
+      // First check if this uid exists in Admins collection
+      const adminSnap = await getDoc(doc(db, 'Admins', fu.uid));
+
+      if (adminSnap.exists()) {
+        // ── Admin user — realtime listener on Admins collection ──────────────
+        unsubDocRef.current = onSnapshot(doc(db, 'Admins', fu.uid), (snap) => {
+          if (snap.exists()) {
+            const d = snap.data();
+            setUser({
+              uid:         d.aid || fu.uid,
+              email:       d.email || fu.email!,
+              name:        d.username || fu.displayName || 'Admin',
+              role:        'admin',
+              adminRole:   d.adminRole || d.role,
+              adminStatus: d.adminStatus,
+              petPostIds:  [],
+              favorites:   [],
+              adoptedPets: [],
+              emailVerified: true,
+              createdAt:   d.createdAt,
+            } as any);
+          } else {
+            setUser(null);
+          }
+          setLoading(false);
+        }, () => setLoading(false));
+
+      } else {
+        // ── Regular user — realtime listener on users collection ─────────────
+        unsubDocRef.current = onSnapshot(doc(db, 'users', fu.uid), (snap) => {
+          if (snap.exists()) {
+            setUser({ ...snap.data() as UserType, uid: fu.uid, emailVerified: !!fu.emailVerified });
+          } else {
+            setUser(null);
+          }
+          setLoading(false);
+        }, () => setLoading(false));
+      }
     });
+
     return () => { unsubAuth(); if (unsubDocRef.current) unsubDocRef.current(); };
   }, []);
 
   const login = async (email: string, pw: string) => {
     try {
       const cred = await signInWithEmailAndPassword(auth, email.trim(), pw);
-      const { getDoc, doc: d } = await import('firebase/firestore');
-      const snap = await getDoc(d(db, 'users', cred.user.uid));
-      if (!snap.exists()) { await signOut(auth); return { success: false, error: 'Account not found in database.' }; }
-      const data = snap.data() as UserType;
+      const uid  = cred.user.uid;
+
+      // Check Admins collection first
+      const adminSnap = await getDoc(doc(db, 'Admins', uid));
+      if (adminSnap.exists()) {
+        const d = adminSnap.data();
+        if (d.adminStatus === 'terminated') {
+          await signOut(auth);
+          return { success: false, error: 'This account has been terminated.' };
+        }
+        return { success: true };
+      }
+
+      // Fall back to users collection
+      const userSnap = await getDoc(doc(db, 'users', uid));
+      if (!userSnap.exists()) {
+        await signOut(auth);
+        return { success: false, error: 'Account not found in database.' };
+      }
+      const data = userSnap.data() as UserType;
       if (data.role !== 'admin' && !(data as any).adminRole) {
-        await signOut(auth); return { success: false, error: 'Access denied. Admin privileges required.' };
+        await signOut(auth);
+        return { success: false, error: 'Access denied. Admin privileges required.' };
       }
       if ((data as any).adminStatus === 'terminated') {
-        await signOut(auth); return { success: false, error: 'This account has been terminated.' };
+        await signOut(auth);
+        return { success: false, error: 'This account has been terminated.' };
       }
       return { success: true };
     } catch (e: any) {
       const m: Record<string, string> = {
-        'auth/wrong-password': 'Incorrect password.',
-        'auth/user-not-found': 'No account found.',
-        'auth/invalid-credential': 'Invalid credentials.',
+        'auth/wrong-password':    'Incorrect password.',
+        'auth/user-not-found':    'No account found.',
+        'auth/invalid-credential':'Invalid credentials.',
         'auth/too-many-requests': 'Too many attempts. Please wait.',
       };
       return { success: false, error: m[e.code] || e.message };

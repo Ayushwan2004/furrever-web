@@ -94,7 +94,7 @@ export default function AdminLoginPage() {
               value={identifier}
               onChange={e => setIdentifier(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handle()}
-              placeholder="FurrEver@username or email"
+              placeholder="furrever@username or email"
               autoComplete="username"
               className="w-full px-4 py-3 rounded-xl border-2 border-[#f0e8d5] bg-[#fdf4e3] focus:border-[#f4a900] focus:outline-none focus:ring-4 focus:ring-[#f4a900]/10 font-semibold text-sm transition-all"
             />
