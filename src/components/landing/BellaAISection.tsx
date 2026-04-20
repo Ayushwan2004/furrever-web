@@ -329,9 +329,9 @@ export default function BellaAISection() {
           className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4"
         >
           {[
-            { value: '10,000+', label: 'Happy Adoptions' },
+            { value: '10+', label: 'Happy Adoptions' },
             { value: '98%', label: 'Match Accuracy' },
-            { value: '< 2 min', label: 'Avg. Response Time' },
+            { value: '< 2 sec', label: 'Avg. Response Time' },
             { value: '0', label: 'Scams. Ever.' },
           ].map((stat, i) => (
             <motion.div

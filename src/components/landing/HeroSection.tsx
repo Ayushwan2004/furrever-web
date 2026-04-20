@@ -79,7 +79,7 @@ export default function HeroSection() {
           {/* <button className="font-extrabold text-sm bg-primary text-[#1b1a18] px-7 py-3.5 rounded-full shadow-[4px_4px_0_#d98b19] hover:shadow-[7px_7px_0_#d98b19] hover:translate-x-[-3px] hover:translate-y-[-3px] transition-all duration-200">
             🐾 Meet the Pets
           </button> */}
-          <a href={process.env.NEXT_PUBLIC_APK_URL || '#'}
+          <a href={process.env.NEXT_PUBLIC_APK_URL}
              className="font-extrabold text-sm bg-[#1b1a18] text-primary px-7 py-3.5 rounded-full shadow-[4px_4px_0_#543e35] hover:shadow-[7px_7px_0_#543e35] hover:translate-x-[-3px] hover:translate-y-[-3px] transition-all duration-200">
             📱 Download APK
           </a>
