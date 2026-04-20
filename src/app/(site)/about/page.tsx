@@ -15,10 +15,10 @@ export default function AboutPage() {
     return ()=>ctx.revert();
   },[]);
   const team = [
-    {n:'Ayush Wankhede',r:'Founder & CEO',e:'❤️‍🔥',d:'Computer Engineering Graduate, Strong Passion towards Business and Human Welfare'},
+    {n:'Ayush Wankhede',r:'Founder & CEO',e:'❤️‍🔥',d:'FullStack Application and Web Developer: Passionate about building impactful applications that solve real-world problems.'},
     {n:'Mohit Patil',r:'Founder & CTO',e:'💻',d:'Full-stack engineer and ML enthusiast passionate about building technology for social good.'},
-    {n:'Ajinkya Patil',r:'Founder & Head of Operations',e:'🌟',d:'Operations specialist ensuring smooth adoption processes nationwide.'},
-    {n:'Partth Thombre',r:'Founder & CMO',e:'💹',d:'ML enthusiast and marketing strategist dedicated to connecting pets with loving families.'},
+    {n:'Ajinkya Patil',r:'Founder & CFO',e:'🌟',d:' Full-stack developer and AI enthusiast dedicated to creating innovative solutions that make a positive impact on the world.'},
+    {n:'Partth Thombre',r:'Founder & CMO',e:'💹',d:'Cybersecuity and ML enthusiast with a passion for building secure and innovative solutions that make a positive impact on the world.'},
   ];
   return (
     <div ref={ref} className="pt-20">
