@@ -1,10 +1,10 @@
 // src/app/api/notifications/route.ts
 // CHANGED: Now also sends Expo push to targeted user or ALL users
-import { NextRequest } from 'next/server';
-import { adminDb } from '@/lib/firebase/admin';
-import { verifyAdmin, res } from '@/lib/apiMiddleware';
-import { FieldValue } from 'firebase-admin/firestore';
-import { sendSinglePush, sendBulkPush } from '@/lib/expoPush';
+import { NextRequest } from "next/server";
+import { adminDb } from "@/lib/firebase/admin";
+import { verifyAdmin, res } from "@/lib/apiMiddleware";
+import { FieldValue } from "firebase-admin/firestore";
+import { sendSinglePush, sendBulkPush } from "@/lib/expoPush";
 
 export async function POST(req: NextRequest) {
   const admin = await verifyAdmin(req);
@@ -12,12 +12,13 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, message, receiverId = 'ALL', type = 'broadcast' } = body;
+    const { title, message, receiverId = "ALL", type = "broadcast" } = body;
 
-    if (!title || !message) return res.err('title and message are required', 400);
+    if (!title || !message)
+      return res.err("title and message are required", 400);
 
     // 1. Write to Firestore (in-app notification history)
-    await adminDb().collection('notifications').add({
+    await adminDb().collection("notifications").add({
       title,
       message,
       receiverId,
@@ -28,23 +29,24 @@ export async function POST(req: NextRequest) {
     });
 
     // 2. Send Expo push notification(s)
-    if (receiverId === 'ALL') {
-      // Fetch all user push tokens
-      const usersSnap = await adminDb()
-        .collection('users')
-        .where('adminStatus', '!=', 'terminated')
-        .get();
+    // 2. Send Expo push notification(s)
+    if (receiverId === "ALL") {
+      const usersSnap = await adminDb().collection("users").get();
 
       const tokens: string[] = [];
-      usersSnap.docs.forEach(d => {
-        const token = d.data().expoPushToken;
-        if (token) tokens.push(token);
+      usersSnap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.adminStatus !== "terminated" && data.expoPushToken) {
+          tokens.push(data.expoPushToken);
+        }
       });
 
       await sendBulkPush(tokens, title, message, { type });
     } else {
-      // Target specific user
-      const userSnap = await adminDb().collection('users').doc(receiverId).get();
+      const userSnap = await adminDb()
+        .collection("users")
+        .doc(receiverId)
+        .get();
       if (userSnap.exists) {
         const token = userSnap.data()?.expoPushToken;
         if (token) await sendSinglePush(token, title, message, { type });
